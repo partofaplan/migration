@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Before the Frost — A Sparrow Migration</title>
+<meta name="description" content="A 3D sparrow migration game. Gather a flock before the first frost, keep it fed and together, and lead it south. Plays in the browser with a keyboard.">
+<meta name="theme-color" content="#1c1610">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Before the Frost — A Sparrow Migration">
+<meta property="og:description" content="You are one small sparrow and winter is coming. Befriend the alphas, gather a flock, and fly south before the first frost.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%23f2b33d'/%3E%3Cellipse cx='30' cy='37' rx='17' ry='13' fill='%238b5e3c'/%3E%3Ccircle cx='43' cy='25' r='10' fill='%237a7570'/%3E%3Cpath d='M51 23l10 3-10 4z' fill='%232f2a25'/%3E%3Ccircle cx='46' cy='23' r='2' fill='%23111'/%3E%3Cpath d='M14 36L3 30l3 11z' fill='%235e4029'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<canvas id="scene"></canvas>
+<div id="frostVignette"></div>
+<div id="dangerVignette"></div>
+
+<!-- ───────────── In-game HUD ───────────── -->
+<div id="hud" class="hidden">
+  <div class="panel" id="flockPanel">
+    <div class="label">Flock</div>
+    <div class="big"><span id="flockN">1</span><span class="dim"> / <span id="flockT">18</span></span></div>
+    <div class="bar"><div id="flockBar" class="fill amber"></div></div>
+    <div id="flockNote" class="note"></div>
+    <div class="label gap">Food</div>
+    <div class="bar"><div id="foodBar" class="fill berry"></div></div>
+    <div id="foodNote" class="note"></div>
+  </div>
+
+  <div class="panel" id="clockPanel">
+    <div class="label">First frost in</div>
+    <div class="big" id="clock">7:00</div>
+    <div class="bar"><div id="seasonBar" class="fill frost"></div></div>
+    <div id="objective" class="note"></div>
+  </div>
+
+  <div class="panel" id="mapPanel">
+    <canvas id="minimap" width="220" height="220"></canvas>
+    <div class="legend">
+      <span><i class="dot tree"></i>flock</span>
+      <span><i class="dot food"></i>food</span>
+      <span><i class="dot hawk"></i>hawk</span>
+    </div>
+  </div>
+
+  <div id="alert" class="hidden">HAWK! Dive under the trees or outrun it</div>
+  <div id="toasts"></div>
+  <div id="prompt" class="hidden"></div>
+
+  <div class="panel hidden" id="perchPanel">
+    <div class="pp-title">Which one is the alpha?</div>
+    <div class="pp-hint"><span class="tag">Field note</span> <span id="ppHint"></span></div>
+    <div class="pp-row">
+      <span id="ppStrikes"></span>
+      <span class="keys"><kbd>A</kbd><kbd>D</kbd> choose &nbsp; <kbd>E</kbd> befriend &nbsp; <kbd>Q</kbd> fly off</span>
+    </div>
+  </div>
+
+  <div id="keysHint">
+    <kbd>A</kbd><kbd>D</kbd> turn &nbsp; <kbd>W</kbd><kbd>S</kbd> climb / dive &nbsp; <kbd>Space</kbd> sprint &nbsp; <kbd>E</kbd> chirp &nbsp; <kbd>P</kbd> pause &nbsp; <kbd>M</kbd> sound
+  </div>
+</div>
+
+<!-- ───────────── Title screen ───────────── -->
+<div id="menu" class="overlay">
+  <div class="card">
+    <div class="eyebrow">A sparrow migration</div>
+    <h1>Before the Frost</h1>
+    <p class="lede">You are one small sparrow, and winter is coming. Alone you will never survive the journey south —
+      gather a flock before the first frost, then lead it across the river.</p>
+
+    <div class="how">
+      <div><b>1 · Find the flocks.</b> Golden beams mark the old oaks where sparrows roost. Fly close and press <kbd>E</kbd> to perch.</div>
+      <div><b>2 · Befriend the alpha.</b> Watch the birds, read the field note, and chirp at the leader. Win the alpha and its whole flock follows you. Guess wrong twice and they scatter.</div>
+      <div><b>3 · Keep them together.</b> A hungry flock deserts you — forage at berry bushes and sunflowers. Call back distracted wanderers with <kbd>E</kbd>, and hide from hawks under the trees.</div>
+      <div><b>4 · Fly south.</b> Once your flock is big enough, cross the river on the southern edge of the map before the clock runs out.</div>
+    </div>
+
+    <div class="controls">
+      <span><kbd>A</kbd><kbd>D</kbd> / <kbd>←</kbd><kbd>→</kbd> turn</span>
+      <span><kbd>W</kbd><kbd>S</kbd> / <kbd>↑</kbd><kbd>↓</kbd> climb · dive</span>
+      <span><kbd>Space</kbd> sprint</span>
+      <span><kbd>E</kbd> chirp · perch · forage</span>
+      <span><kbd>P</kbd> pause</span>
+      <span><kbd>M</kbd> mute</span>
+    </div>
+
+    <p class="touch-note">This game is played with a keyboard. Open it on a laptop or desktop to fly.</p>
+
+    <div class="diffs">
+      <button class="diff" data-diff="easy"><b>Gentle Autumn</b><span>9:00 · flock of 12</span></button>
+      <button class="diff primary" data-diff="normal"><b>Crisp October</b><span>7:00 · flock of 18</span></button>
+      <button class="diff" data-diff="hard"><b>Early Frost</b><span>5:30 · flock of 22 · two hawks</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- ───────────── Pause ───────────── -->
+<div id="pause" class="overlay hidden">
+  <div class="card small">
+    <h2>Paused</h2>
+    <p class="lede">The wind holds its breath.</p>
+    <div class="diffs">
+      <button id="resumeBtn" class="diff primary"><b>Resume</b><span>P or Esc</span></button>
+      <button id="quitBtn" class="diff"><b>Give up</b><span>back to title</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- ───────────── Result ───────────── -->
+<div id="end" class="overlay hidden">
+  <div class="card small">
+    <div class="eyebrow" id="endEyebrow"></div>
+    <h2 id="endTitle"></h2>
+    <p class="lede" id="endText"></p>
+    <div class="stats" id="endStats"></div>
+    <div class="diffs">
+      <button id="againBtn" class="diff primary"><b>Fly again</b><span>same season</span></button>
+      <button id="menuBtn" class="diff"><b>Title screen</b><span>change difficulty</span></button>
+    </div>
+  </div>
+</div>
+
+<noscript>
+  <div class="overlay"><div class="card small"><h2>JavaScript is off</h2><p class="lede">Before the Frost needs JavaScript to run. Turn it on for this site and reload.</p></div></div>
+</noscript>
+
+<div id="nowebgl" class="overlay hidden">
+  <div class="card small">
+    <h2>WebGL is unavailable</h2>
+    <p class="lede">This game needs a browser with WebGL enabled. Try a current version of Chrome, Edge, Firefox or Safari.</p>
+  </div>
+</div>
+
+<script src="vendor/three.min.js"></script>
+<script src="js/util.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/birds.js"></script>
+<script src="js/world.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
