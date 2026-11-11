@@ -4,7 +4,9 @@ A 3D sparrow migration game. You start as one sparrow with the first frost on it
 work out which bird in each roosting flock is the alpha, befriend it, and its flock joins yours. Keep everyone
 fed and together, then lead them south across the river before the clock runs out.
 
-## Run it
+**Play it online: https://partofaplan.github.io/migration/**
+
+## Run it locally
 
 No install, no build, no internet connection needed.
 
